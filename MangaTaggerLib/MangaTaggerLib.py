@@ -156,13 +156,13 @@ def file_renamer(filename, manga_title, logging_info):
     volumedelimiters = ["volume", "vol.", "vol"]
     filename = filename.replace(".cbz", "").title()
     if filename.find('-.-') != -1:
-        split_filename = [x.strip() for x in filename.split('-.-')][1]
+        split_filename = [x.strip() for x in filename.split('-.-')]
         LOG.debug(f'Chapter text for {filename}.cbz is assumed to be {split_filename}')
         if split_filename:
             filename = split_filename[1]
         else:
             filename = ""
-        if manga_title is None:
+        if manga_title is None and split_filename[0]:
             LOG.debug(f'File was in download directory, manga name assumed to be {split_filename[0]}')
             manga_title = split_filename[0]
     for x in delimiters:
@@ -171,7 +171,7 @@ def file_renamer(filename, manga_title, logging_info):
             vol_num = None
             text = re.split(x, filename, maxsplit=1, flags=re.IGNORECASE)
             for y in volumedelimiters:
-                if re.search("([0-9. ]|^)" + y + "([0-9. ])", text[0], flags=re.IGNORECASE):
+                if re.search("([ ]|^)" + y + "([0-9. ])", text[0], flags=re.IGNORECASE):
                     LOG.debug(f'Volume delimiter {y} was found in string {text[0]}')
                     volume = re.split(y, text[0], flags=re.IGNORECASE)[1]
                     vol_num = re.search(r'[\d.]+', volume).group(0)
