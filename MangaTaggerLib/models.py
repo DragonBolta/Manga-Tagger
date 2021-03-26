@@ -261,6 +261,7 @@ class Data:
         elif details["source"] == "MangaUpdates":
             self.series_title = title
             self.id = MU_id
+            self.synonyms = details["associated_names"]
             if "Complete" in details["status"]:
                 self.status = "Finished"
             else:
@@ -271,8 +272,8 @@ class Data:
             self.url = r"https://www.mangaupdates.com/series.html?id=" + str(MU_id)
             self.publish_date = details["year"]
             self.genres = details["genres"]
-            self.staff["story"] = [x for x in details["authors"]]
-            self.staff["art"] = [x for x in details["artists"]]
+            self.staff["story"] = [x["name"] for x in details["authors"]]
+            self.staff["art"] = [x["name"] for x in details["artists"]]
             self.serializations = details["serialized"]["name"]
         elif details["source"] == "MAL":
             self.series_title = title
