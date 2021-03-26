@@ -478,11 +478,17 @@ def construct_comicinfo_xml(metadata, chapter_number, logging_info):
         month = SubElement(comicinfo, 'Month')
         month.text = f'{publish_date.month}'
 
+        month = SubElement(comicinfo, 'Day')
+        month.text = f'{publish_date.day}'
+
     else:
         year = SubElement(comicinfo, 'Year')
         year.text = None
 
         month = SubElement(comicinfo, 'Month')
+        month.text = None
+
+        month = SubElement(comicinfo, 'Day')
         month.text = None
 
     writer = SubElement(comicinfo, 'Writer')

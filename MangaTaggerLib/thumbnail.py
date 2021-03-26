@@ -86,7 +86,7 @@ def thumb(dir):
                     imagefile = next(file for file in z.namelist() if (file.endswith(".png") or file.endswith(".jpg") or file.endswith(".jpeg") or file.endswith(".webp")))
                     imagefile = z.extract(imagefile)
                     image = Image.open(imagefile)
-                    if image.mode is "RGBA":
+                    if image.mode == "RGBA":
                         new_image = Image.new("RGBA", image.size, "WHITE")
                         new_image.paste(image, (0, 0), image)
                         new_image = new_image.convert('RGB')
