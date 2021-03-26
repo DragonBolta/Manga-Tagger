@@ -79,8 +79,8 @@ def thumb(dir):
                 soup = BeautifulSoup(req.content, 'html.parser')
                 image = requests.get(soup.find_all(name="img")[0]["src"], stream=True)
             elif "mangaupdates" in webUrl:
-                webUrl = pymanga.series(re.search('(?<=\?id=/)\d+', webUrl))["image"]
-                image = image.requests.get(webUrl, stream=True)
+                webUrl = pymanga.series(re.search(r'(?<=\?id=)(\d+)', webUrl).group(1))["image"]
+                image = requests.get(webUrl, stream=True)
             else:
                 with zipfile.ZipFile(os.path.join(dir, file)) as z:
                     imagefile = next(file for file in z.namelist() if (file.endswith(".png") or file.endswith(".jpg") or file.endswith(".jpeg") or file.endswith(".webp")))

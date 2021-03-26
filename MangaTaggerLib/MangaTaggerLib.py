@@ -193,9 +193,23 @@ def file_renamer(filename, manga_title, logging_info):
                 return [f"Vol. {vol_num} Chapter {ch_num}.cbz", ch_num, chapter_title]
             else:
                 return [f"Chapter {ch_num}.cbz", ch_num, chapter_title]
-    if 'oneshot' in filename.lower():
+
+    if re.search("oneshot", filename, flags=re.IGNORECASE):
         LOG.debug(f'manga_type: Oneshot')
         return [f'{manga_title}.cbz', '0', manga_title]
+
+    for x in volumedelimiters:
+        if re.search("([ ]|^)" + x + "([0-9. ])", filename, flags=re.IGNORECASE):
+            LOG.debug(f'Volume delimiter {x} was found in string {filename}')
+            volume = re.split(x, filename, flags=re.IGNORECASE)[1]
+            vol_num = re.search(r'[\d.]+', volume).group(0)
+            LOG.debug(f'Volume #: {vol_num}')
+            volume_title = re.split(r'[\d.]+', filename, maxsplit=1)[1].strip()
+            LOG.debug(f'Volume title: {volume_title}')
+            if not volume_title:
+                return [f"Volume {vol_num}.cbz", vol_num, manga_title]
+            else:
+                return [f"Volume {vol_num}.cbz", vol_num, volume_title]
 
     if filename.strip().isdigit():
         LOG.debug(f'File name is a number')
@@ -471,15 +485,25 @@ def construct_comicinfo_xml(metadata, chapter_number, logging_info):
         page_count.text = str(metadata.page_count)
 
     if metadata.publish_date:
-        publish_date = datetime.strptime(metadata.publish_date, '%Y-%m-%d').date()
-        year = SubElement(comicinfo, 'Year')
-        year.text = f'{publish_date.year}'
+        if metadata.source == "MangaUpdates":
+            year = SubElement(comicinfo, 'Year')
+            year.text = metadata.publish_date
 
-        month = SubElement(comicinfo, 'Month')
-        month.text = f'{publish_date.month}'
+            month = SubElement(comicinfo, 'Month')
+            month.text = None
 
-        month = SubElement(comicinfo, 'Day')
-        month.text = f'{publish_date.day}'
+            month = SubElement(comicinfo, 'Day')
+            month.text = None
+        else:
+            publish_date = datetime.strptime(metadata.publish_date, '%Y-%m-%d').date()
+            year = SubElement(comicinfo, 'Year')
+            year.text = f'{publish_date.year}'
+
+            month = SubElement(comicinfo, 'Month')
+            month.text = f'{publish_date.month}'
+
+            month = SubElement(comicinfo, 'Day')
+            month.text = f'{publish_date.day}'
 
     else:
         year = SubElement(comicinfo, 'Year')
@@ -507,7 +531,7 @@ def construct_comicinfo_xml(metadata, chapter_number, logging_info):
     letterer.text = tryIter(metadata.staff['art'])
 
     cover_artist = SubElement(comicinfo, 'CoverArtist')
-    if tryIter(metadata.staff['cover']) and metadata.staff['cover'] is not None:
+    if tryIter(metadata.staff['cover']) and metadata.staff['cover']:
         cover_artist.text = tryIter(metadata.staff['cover'])
     else:
         cover_artist.text = tryIter(metadata.staff['art'])
@@ -547,7 +571,8 @@ def construct_comicinfo_xml(metadata, chapter_number, logging_info):
 
 
 def reconstruct_manga_chapter(comicinfo_xml, manga_file_path, isHentai,logging_info):
-    folderdir = "\\".join(str(manga_file_path.absolute()).split("\\")[:-1])
+    folderdir = os.path.dirname(manga_file_path)
+    #folderdir = "\\".join(str(manga_file_path.absolute()).split("\\")[:-1])
     try:
         with ZipFile(manga_file_path, 'a') as zipfile:
             zipfile.writestr('ComicInfo.xml', comicinfo_xml)
