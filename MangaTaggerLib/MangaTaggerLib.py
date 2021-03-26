@@ -507,7 +507,7 @@ def construct_comicinfo_xml(metadata, chapter_number, logging_info):
     letterer.text = tryIter(metadata.staff['art'])
 
     cover_artist = SubElement(comicinfo, 'CoverArtist')
-    if tryIter(metadata.staff['cover']):
+    if tryIter(metadata.staff['cover']) and metadata.staff['cover'] is not None:
         cover_artist.text = tryIter(metadata.staff['cover'])
     else:
         cover_artist.text = tryIter(metadata.staff['art'])
