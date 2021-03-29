@@ -35,6 +35,13 @@ CURRENTLY_PENDING_RENAME = set()
 
 preferences = ["AniList", "MangaUpdates", "MAL", "Fakku", "NHentai"]
 
+sources = {
+    "MAL": MTJikan(),
+    "AniList": AniList(),
+    "MangaUpdates": MangaUpdates(),
+    "NHentai": NH(),
+    "Fakku": Fakku()}
+
 
 def main():
     AppSettings.load()
@@ -339,12 +346,6 @@ def metadata_tagger(manga_title, manga_chapter_number, manga_chapter_title, logg
         logging_info['metadata'] = manga_metadata.__dict__
     # Get metadata
     else:
-        sources = {
-            "MAL": MTJikan(),
-            "AniList": AniList(),
-            "MangaUpdates": MangaUpdates(),
-            "NHentai": NH(),
-            "Fakku": Fakku()}
         # sources["Kitsu"] = Kitsu
         results = {}
         metadata = None
@@ -387,7 +388,7 @@ def metadata_tagger(manga_title, manga_chapter_number, manga_chapter_title, logg
                                     'Manga Tagger has unintentionally breached the API limits on Jikan. Waiting 60s to clear '
                                     'all rate limiting limits...')
                                 time.sleep(60)
-                                manga = MTJikan().manga(result["mal_id"])
+                                manga = sources["MAL"].manga(result["mal_id"])
                             manga["source"] = "MAL"
                             metadata = Data(manga, manga_title, result["mal_id"])
                             raise MangaMatchedException("Found a match")
@@ -588,7 +589,12 @@ def reconstruct_manga_chapter(comicinfo_xml, manga_file_path, isHentai,logging_i
         shutil.move(manga_file_path, Path(str(manga_file_path.absolute()).replace("Manga", "Hentai")))
         shutil.rmtree(Path(folderdir))
         folderdir = dirh
-    thumb(folderdir)
+    try:
+        thumb(folderdir, logging_info)
+    except:
+        if "ComicInfo.xml" in os.listdir(folderdir):
+            os.remove(Path(folderdir, "ComicInfo.xml"))
+        pass
 
     LOG.info(f'ComicInfo.xml has been created and appended to "{manga_file_path}".', extra=logging_info)
 

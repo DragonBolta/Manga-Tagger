@@ -16,7 +16,7 @@ from pythonjsonlogger import jsonlogger
 from MangaTaggerLib import MangaTaggerLib, models
 from MangaTaggerLib.database import Database
 from MangaTaggerLib.task_queue import QueueWorker
-from MangaTaggerLib.api import AniList
+from MangaTaggerLib.api import MTJikan, AniList, MangaUpdates, Fakku, NH
 # arg0 = FMD2 directory, arg1 = Directory to watch, arg2 = [preferences], arg3 = [anilist title preferences],
 # arg4 = source -> folder (not done)
 from sys import argv
@@ -127,7 +127,12 @@ class AppSettings:
         cls._scan_download_dir()
 
         # Initialize API
+        MTJikan.initialize()
         AniList.initialize()
+        MangaUpdates.initialize()
+        Fakku.initialize()
+        NH.initialize()
+
 
         # Register function to be run prior to application termination
         atexit.register(cls._exit_handler)
@@ -393,6 +398,5 @@ class AppSettings:
                 QueueWorker.add_to_task_queue(chapter)
 
 
-
 def compare(s1, s2):
-    return fuzz.ratio(s1, s2)/100
+    return fuzz.ratio(s1.lower(), s2.lower()) / 100

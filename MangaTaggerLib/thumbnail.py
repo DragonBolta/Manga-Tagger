@@ -7,6 +7,9 @@ from PIL import Image
 import pymanga
 from bs4 import BeautifulSoup
 
+from MangaTaggerLib import MangaTaggerLib
+from MangaTaggerLib.api import AniList
+
 
 def flat(*nums):
     'Build a tuple of ints from float or integer arguments. Useful because PIL crop and resize require integer points.'
@@ -54,7 +57,7 @@ def cropped_thumbnail(img, size):
 
     return img.resize(target.size, Image.ANTIALIAS)
 
-def thumb(dir):
+def thumb(dir, logging_info):
     if "default.jpg" not in os.listdir(dir) and os.listdir(dir):
         file = [x for x in os.listdir(dir) if x.endswith('.cbz')][0]
         with zipfile.ZipFile(os.path.join(dir, file)) as z:
@@ -68,7 +71,7 @@ def thumb(dir):
             webUrl = root.findall("Web")[0].text
             image = None
             if "myanimelist" in webUrl:
-                webUrl = re.search('(?<=manga/)\d+', webUrl)
+                webUrl = re.search(r'(?<=manga/)\d+', webUrl)
                 # r = requests.get("https://api.jikan.moe/v3/manga/" + webUrl.group(0) + "/pictures")
                 r = requests.get("https://api.jikan.moe/v3/manga/" + webUrl.group(0))
                 json = r.json()
@@ -76,8 +79,16 @@ def thumb(dir):
                 image = requests.get(json["image_url"].replace(".jpg", "l.jpg"), stream=True)
             elif "anilist" in webUrl:
                 req = requests.get(webUrl)
-                soup = BeautifulSoup(req.content, 'html.parser')
-                image = requests.get(soup.find_all(name="img")[0]["src"], stream=True)
+                if req.status_code == 404:
+                    al_id = int(re.search(r'(?<=manga/)\d+', webUrl).group(0))
+                    asd = MangaTaggerLib.sources["AniList"].manga(al_id, logging_info)
+                    if asd['idMal']:
+                        r = requests.get("https://api.jikan.moe/v3/manga/" + str(asd['idMal']))
+                        json = r.json()
+                        image = requests.get(json["image_url"].replace(".jpg", "l.jpg"), stream=True)
+                else:
+                    soup = BeautifulSoup(req.content, 'html.parser')
+                    image = requests.get(soup.find_all(name="img")[0]["src"], stream=True)
             elif "mangaupdates" in webUrl:
                 webUrl = pymanga.series(re.search(r'(?<=\?id=)(\d+)', webUrl).group(1))["image"]
                 image = requests.get(webUrl, stream=True)

@@ -11,34 +11,55 @@ from NHentai import NHentai, SearchPage, Doujin, DoujinThumbnail
 import pymanga
 
 
-class MTJikan(Jikan):
+class API:
+    max_cpm = None
+    max_cps = None
+    last_api_call = None
+
+    @classmethod
+    def __init__(cls, calls_per_second=2, calls_per_minute=30):
+        cls.calls_second = 0
+        cls.calls_minute = 0
+        cls.max_cps = calls_per_second
+        cls.max_cpm = calls_per_minute
+        cls.last_api_call = datetime.now()
+
+    # Rate Limit: 2 requests/second
+    @classmethod
+    def _check_rate_seconds(cls):
+        last_api_call_delta = (datetime.now() - cls.last_api_call).total_seconds()
+
+        if cls.calls_second > cls.max_cps and last_api_call_delta < 1:
+            time.sleep(1)
+        elif last_api_call_delta > 1:
+            cls.calls_second = 0
+
+    # Rate Limit: 30 requests/minute
+    @classmethod
+    def _check_rate_minutes(cls):
+        last_api_call_delta = (datetime.now() - cls.last_api_call).total_seconds()
+
+        if cls.calls_minute > cls.max_cpm and last_api_call_delta < 60:
+            time.sleep(61 - last_api_call_delta)
+        elif last_api_call_delta > 60:
+            cls.calls_minute = 0
+
+
+class MTJikan(API):
+    calls_minute = None
+    calls_second = None
+    last_api_call = None
+
     def __init__(
             self,
             selected_base: Optional[str] = None,
             session: Optional[requests.Session] = None,
     ) -> None:
-        super(MTJikan, self).__init__(selected_base, session)
-        self.calls_second = 0
-        self.calls_minute = 0
-        self.last_api_call = datetime.now()
+        self.jikan = Jikan()
 
-    # Rate Limit: 2 requests/second
-    def _check_rate_seconds(self):
-        last_api_call_delta = (datetime.now() - self.last_api_call).total_seconds()
-
-        if self.calls_second > 2 and last_api_call_delta < 1:
-            time.sleep(1)
-        elif last_api_call_delta > 1:
-            self.calls_second = 0
-
-    # Rate Limit: 30 requests/minute
-    def _check_rate_minutes(self):
-        last_api_call_delta = (datetime.now() - self.last_api_call).total_seconds()
-
-        if self.calls_minute > 30 and last_api_call_delta < 60:
-            time.sleep(61 - last_api_call_delta)
-        elif last_api_call_delta > 60:
-            self.calls_minute = 0
+    @classmethod
+    def initialize(cls):
+        super().__init__(2, 30)
 
     def search(
             self,
@@ -47,42 +68,50 @@ class MTJikan(Jikan):
             page: Optional[int] = None,
             parameters: Optional[Mapping[str, Optional[Union[int, str, float]]]] = None,
     ) -> Dict[str, Any]:
-        self._check_rate_seconds()
-        self._check_rate_minutes()
+        super()._check_rate_seconds()
+        super()._check_rate_minutes()
 
-        self.calls_second += 1
-        self.calls_minute += 1
-        self.last_api_call = datetime.now()
-        search_results = super(MTJikan, self).search(search_type, query, page, parameters)
-        self.session.close()
+        MTJikan.calls_second += 1
+        MTJikan.calls_minute += 1
+        MTJikan.last_api_call = datetime.now()
+        search_results = self.jikan.search(search_type, query, page, parameters)
         return search_results["results"]
 
     def manga(
             self, id: int, extension: Optional[str] = None, page: Optional[int] = None
     ) -> Dict[str, Any]:
-        self._check_rate_seconds()
-        self._check_rate_minutes()
+        super()._check_rate_seconds()
+        super()._check_rate_minutes()
 
-        self.calls_second += 1
-        self.calls_minute += 1
-        self.last_api_call = datetime.now()
-        search_results = super(MTJikan, self).manga(id, extension, page)
-        self.session.close()
+        MTJikan.calls_second += 1
+        MTJikan.calls_minute += 1
+        MTJikan.last_api_call = datetime.now()
+        search_results = self.jikan.manga(id, extension, page)
         search_results["source"] = "MAL"
         search_results["id"] = str(id)
         search_results["url"] = r"https://myanimelist.net/manga/" + str(id)
         return search_results
 
 
-class AniList:
+class AniList(API):
     _log = None
+    calls_minute = None
+    calls_second = None
+    last_api_call = None
 
     @classmethod
     def initialize(cls):
+        super().__init__(2, 30)
         cls._log = logging.getLogger(f'{cls.__module__}.{cls.__name__}')
 
     @classmethod
     def _post(cls, query, variables, logging_info):
+        super()._check_rate_seconds()
+        super()._check_rate_minutes()
+
+        cls.calls_second += 1
+        cls.calls_minute += 1
+        cls.last_api_call = datetime.now()
         try:
             response = requests.post('https://graphql.anilist.co', json={'query': query, 'variables': variables})
         except Exception as e:
@@ -314,18 +343,38 @@ class Kitsu:
         cls._log = logging.getLogger(f'{cls.__module__}.{cls.__name__}')
 
 
-class MangaUpdates:
+class MangaUpdates(API):
+    calls_minute = None
+    calls_second = None
+    last_api_call = None
+
     @classmethod
     def initialize(cls):
-        cls._log = logging.getLogger(f'{cls.__module__}.{cls.__name__}')
+        super().__init__(2, 30)
 
+    @classmethod
     def search(cls, query):
+        super()._check_rate_seconds()
+        super()._check_rate_minutes()
+
+        cls.calls_second += 1
+        cls.calls_minute += 1
+        cls.last_api_call = datetime.now()
+
         data = pymanga.search(query)["series"]
         for x in data:
             x['title'] = x['name']
         return data
 
+    @classmethod
     def series(cls, id):
+        super()._check_rate_seconds()
+        super()._check_rate_minutes()
+
+        cls.calls_second += 1
+        cls.calls_minute += 1
+        cls.last_api_call = datetime.now()
+
         dct = pymanga.series(id)
         dct["source"] = "MangaUpdates"
         dct["id"] = id
@@ -333,9 +382,15 @@ class MangaUpdates:
         return dct
 
 
-class Fakku:
-    def __init__(self):
-        self.headers = {
+class Fakku(API):
+    calls_minute = None
+    calls_second = None
+    last_api_call = None
+
+    @classmethod
+    def initialize(cls):
+        super().__init__(2, 30)
+        cls.headers = {
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'GET',
             'Access-Control-Allow-Headers': 'Content-Type',
@@ -343,11 +398,20 @@ class Fakku:
             'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0'
         }
 
-    def search(self, title):
+
+    @classmethod
+    def search(cls, title):
+        super()._check_rate_seconds()
+        super()._check_rate_minutes()
+
+        cls.calls_second += 1
+        cls.calls_minute += 1
+        cls.last_api_call = datetime.now()
+
         query = re.sub(r"\[([^]]+)\]", "", str(title))
         query = re.sub(r"\(([^)]+)\)", "", query)
         url = r"https://www.fakku.net/hentai/" + query.strip().replace(" ", "-") + "-english"
-        req = requests.get(url, self.headers)
+        req = requests.get(url, cls.headers)
         soup = BeautifulSoup(req.content, 'html.parser')
         dct = {
             "success": str(soup.find("title").contents[0]) != "Error Message",
@@ -355,8 +419,16 @@ class Fakku:
         }
         return [dct]
 
-    def manga(self, url):
-        req = requests.get(url, self.headers)
+    @classmethod
+    def manga(cls, url):
+        super()._check_rate_seconds()
+        super()._check_rate_minutes()
+
+        cls.calls_second += 1
+        cls.calls_minute += 1
+        cls.last_api_call = datetime.now()
+
+        req = requests.get(url, cls.headers)
         soup = BeautifulSoup(req.content, 'html.parser')
         series_title = soup.find("title").contents[0].split(" Hentai by")[0]
         series_title_eng = None
@@ -364,10 +436,13 @@ class Fakku:
         status = "Finished"
         type = "Doujinshi"
         description = soup.find(text="Description").parent.parent.contents[3].get_text(strip=True)
-        page_count = re.search(r'[\d.]+',soup.find(text="Pages").parent.parent.contents[3].get_text(strip=True)).group(0)
+        page_count = re.search(r'[\d.]+', soup.find(text="Pages").parent.parent.contents[3].get_text(strip=True)).group(
+            0)
         publish_date = None
-        genres = [x.get_text(strip=True) for x in soup.find_all(lambda x: x.has_attr("href") and r"/tags" in x["href"])][1:]
-        artists = [x.get_text(strip=True) for x in filter(lambda x: x != ", ",soup.find("div", {"class": "row-right"}).contents)]
+        genres = [x.get_text(strip=True) for x in
+                  soup.find_all(lambda x: x.has_attr("href") and r"/tags" in x["href"])][1:]
+        artists = [x.get_text(strip=True) for x in
+                   filter(lambda x: x != ", ", soup.find("div", {"class": "row-right"}).contents)]
         staff = {"story": artists, "art": artists}
         serializations = "FAKKU"
         dct = {
@@ -389,22 +464,44 @@ class Fakku:
         return dct
 
 
-class NH(NHentai):
-    def initialize(self):
-        super(NH, self).__init__
+class NH(API):
+    calls_minute = None
+    calls_second = None
+    last_api_call = None
+
+    def __init__(self):
+        self.NH = NHentai()
+
+    @classmethod
+    def initialize(cls):
+        super().__init__(2, 30)
 
     def search(self, query):
+        super()._check_rate_seconds()
+        super()._check_rate_minutes()
+
+        NH.calls_second += 1
+        NH.calls_minute += 1
+        NH.last_api_call = datetime.now()
+
         cleanquery = query
         tldfilter = [".us", ".com"]
         for x in tldfilter:
             cleanquery = cleanquery.replace(x, "")
-        search_obj: SearchPage = super(NH, self).search(query=cleanquery, sort="popular", page=1)
+        search_obj: SearchPage = self.NH.search(query=cleanquery, sort="popular", page=1)
         return [x.__dict__ for x in search_obj.doujins]
 
     def manga(self, id, title):
+        super()._check_rate_seconds()
+        super()._check_rate_minutes()
+
+        NH.calls_second += 1
+        NH.calls_minute += 1
+        NH.last_api_call = datetime.now()
+
         book = re.sub(r"\[([^]]+)\]", "", title)
         book = re.findall(r"\(([^)]+)\)", book)
-        doujin = super(NH, self)._get_doujin(id)
+        doujin = self.NH._get_doujin(id)
         cleaned = re.sub(r"\[([^]]+)\]", "", str(title))
         cleaned = re.sub(r"\(([^)]+)\)", "", cleaned)
         series_title = cleaned
