@@ -116,7 +116,7 @@ def process_manga_chapter(file_path: Path, event_id, download_dir):
             return
 
     # More Multithreading Optimization
-    if directory_name in ProcSeriesTable.processed_series:
+    if re.sub(r"[$.]", "_", directory_name) in ProcSeriesTable.processed_series:
         LOG.info(f'"{directory_name}" has been processed as a searched series and will continue processing.',
                  extra=logging_info)
     else:
@@ -334,12 +334,12 @@ def metadata_tagger(manga_title, manga_chapter_number, manga_chapter_title, logg
             break
     # Metadata already exists
     if db_exists:
-        if manga_title in ProcSeriesTable.processed_series:
+        if re.sub(r"[$.]", "_", manga_title) in ProcSeriesTable.processed_series:
             LOG.info(f'Found an entry in manga_metadata for "{manga_title}".', extra=logging_info)
         else:
             LOG.info(f'Found an entry in manga_metadata for "{manga_title}"; unlocking series for processing.',
                      extra=logging_info)
-            ProcSeriesTable.processed_series.add(manga_title)
+            ProcSeriesTable.processed_series.add(re.sub(r"[$.]", "_", manga_title))
             CURRENTLY_PENDING_DB_SEARCH.remove(manga_title)
 
         manga_metadata = Metadata(manga_title, logging_info, db_details=manga_search)
@@ -438,7 +438,7 @@ def metadata_tagger(manga_title, manga_chapter_number, manga_chapter_title, logg
 
         LOG.info(f'Retrieved metadata for "{manga_title}" from the Anilist and MyAnimeList APIs; '
                  f'now unlocking series for processing!', extra=logging_info)
-        ProcSeriesTable.processed_series.add(manga_title)
+        ProcSeriesTable.processed_series.add(re.sub(r"[$.]", "_", manga_title))
         CURRENTLY_PENDING_DB_SEARCH.remove(manga_title)
 
     if AppSettings.mode_settings is None or ('write_comicinfo' in AppSettings.mode_settings.keys()
@@ -517,25 +517,25 @@ def construct_comicinfo_xml(metadata, chapter_number, logging_info):
         month.text = None
 
     writer = SubElement(comicinfo, 'Writer')
-    writer.text = tryIter(metadata.staff['story'])
+    writer.text = ",".join(metadata.staff['story'])
 
     penciller = SubElement(comicinfo, 'Penciller')
-    penciller.text = tryIter(metadata.staff['art'])
+    penciller.text = ",".join(metadata.staff['art'])
 
     inker = SubElement(comicinfo, 'Inker')
-    inker.text = tryIter(metadata.staff['art'])
+    inker.text = ",".join(metadata.staff['art'])
 
     colorist = SubElement(comicinfo, 'Colorist')
-    colorist.text = tryIter(metadata.staff['art'])
+    colorist.text = ",".join(metadata.staff['art'])
 
     letterer = SubElement(comicinfo, 'Letterer')
-    letterer.text = tryIter(metadata.staff['art'])
+    letterer.text = ",".join(metadata.staff['art'])
 
     cover_artist = SubElement(comicinfo, 'CoverArtist')
     if tryIter(metadata.staff['cover']) and metadata.staff['cover']:
-        cover_artist.text = tryIter(metadata.staff['cover'])
+        cover_artist.text = ",".join(metadata.staff['cover'])
     else:
-        cover_artist.text = tryIter(metadata.staff['art'])
+        cover_artist.text = ",".join(metadata.staff['art'])
 
     publisher = SubElement(comicinfo, 'Publisher')
     publisher.text = tryIter(metadata.serializations)
