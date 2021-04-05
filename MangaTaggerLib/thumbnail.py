@@ -70,6 +70,7 @@ def thumb(dir, logging_info):
             root = tree.getroot()
             webUrl = root.findall("Web")[0].text
             image = None
+            img = None
             if "myanimelist" in webUrl:
                 webUrl = re.search(r'(?<=manga/)\d+', webUrl)
                 # r = requests.get("https://api.jikan.moe/v3/manga/" + webUrl.group(0) + "/pictures")
@@ -77,6 +78,7 @@ def thumb(dir, logging_info):
                 json = r.json()
                 #print(json["image_url"].replace(".jpg", "l.jpg"))
                 image = requests.get(json["image_url"].replace(".jpg", "l.jpg"), stream=True)
+                img = Image.open(image.raw)
             elif "anilist" in webUrl:
                 req = requests.get(webUrl)
                 if req.status_code == 404:
@@ -86,12 +88,15 @@ def thumb(dir, logging_info):
                         r = requests.get("https://api.jikan.moe/v3/manga/" + str(asd['idMal']))
                         json = r.json()
                         image = requests.get(json["image_url"].replace(".jpg", "l.jpg"), stream=True)
+                        img = Image.open(image.raw)
                 else:
                     soup = BeautifulSoup(req.content, 'html.parser')
                     image = requests.get(soup.find_all(name="img")[0]["src"], stream=True)
+                    img = Image.open(image.raw)
             elif "mangaupdates" in webUrl:
                 webUrl = pymanga.series(re.search(r'(?<=\?id=)(\d+)', webUrl).group(1))["image"]
                 image = requests.get(webUrl, stream=True)
+                img = Image.open(image.raw)
             else:
                 with zipfile.ZipFile(os.path.join(dir, file)) as z:
                     imagefile = next(file for file in z.namelist() if (file.endswith(".png") or file.endswith(".jpg") or file.endswith(".jpeg") or file.endswith(".webp")))
@@ -100,36 +105,14 @@ def thumb(dir, logging_info):
                     if image.mode == "RGBA":
                         new_image = Image.new("RGBA", image.size, "WHITE")
                         new_image.paste(image, (0, 0), image)
-                        new_image = new_image.convert('RGB')
+                        img = new_image.convert('RGB')
                     else:
-                        new_image = Image.new("RGB", image.size)
-                        new_image.paste(image, (0, 0))
-                    width = new_image.size[0]
-                    height = new_image.size[1]
-
-                    aspect = width / float(height)
-
-                    ideal_width = 150
-                    ideal_height = 212
-
-                    ideal_aspect = ideal_width / float(ideal_height)
-
-                    if aspect > ideal_aspect:
-                        # Then crop the left and right edges:
-                        new_width = int(ideal_aspect * height)
-                        offset = (width - new_width) / 2
-                        resize = (offset, 0, width - offset, height)
-                    else:
-                        # ... crop the top and bottom:
-                        new_height = int(width / ideal_aspect)
-                        offset = (height - new_height) / 2
-                        resize = (0, offset, width, height - offset)
-
-                    new_image = new_image.crop(resize)
-                    new_image.save(os.path.join(dir, "default.jpg"), "JPEG", quality=100)
-                    os.remove(info)
-                    return
-            img = Image.open(image.raw)
+                        img = Image.new("RGB", image.size)
+                        img.paste(image, (0, 0))
+            if img.mode == "RGBA":
+                new_image = Image.new("RGBA", img.size, "WHITE")
+                new_image.paste(img, (0, 0), img)
+                img = new_image.convert('RGB')
             width = img.size[0]
             height = img.size[1]
 
@@ -152,6 +135,6 @@ def thumb(dir, logging_info):
                 resize = (0, offset, width, height - offset)
 
             img = img.crop(resize)
-            img.save(os.path.join(dir, "default.jpg"))
+            img.save(os.path.join(dir, "default.jpg"), "JPEG", quality=100)
             img.close()
             os.remove(info)
